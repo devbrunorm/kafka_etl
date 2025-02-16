@@ -1,23 +1,43 @@
+# Debezium/Spark ETL [WIP]
+
+## Goals
+- Learn more about Kafka Connect and Debezium
+- Pratice with Spark Streaming
+
+## Setup
+
+### Requirements
+- Docker
+- Python
+
+### Creating CDC with Debezium
+
+Initialize Zookeeper:
 ```
-docker run -it --rm --name zookeeper -p 2181:2181 -p 2888:2888 -p 3888:3888 quay.io/debezium/zookeeper:3.0
+sh ./scripts/zookeeper.sh
 ```
 
+Initialize Kafka:
 ```
-docker run -it --rm --name kafka -p 9092:9092 --link zookeeper:zookeeper quay.io/debezium/kafka:3.0
-```
-
-```
-docker run -it --rm --name mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=debezium -e MYSQL_USER=mysqluser -e MYSQL_PASSWORD=mysqlpw quay.io/debezium/example-mysql:3.0
+sh ./scripts/kafka.sh
 ```
 
+Initialize Kafka UI:
 ```
-docker run -it --rm --name mysqlterm --link mysql mysql:8.2 sh -c 'exec mysql -h"$MYSQL_PORT_3306_TCP_ADDR" -P"$MYSQL_PORT_3306_TCP_PORT" -uroot -p"$MYSQL_ENV_MYSQL_ROOT_PASSWORD"'
-```
-
-```
-docker run -it --rm --name connect -p 8083:8083 -e GROUP_ID=1 -e CONFIG_STORAGE_TOPIC=my_connect_configs -e OFFSET_STORAGE_TOPIC=my_connect_offsets -e STATUS_STORAGE_TOPIC=my_connect_statuses --link kafka:kafka --link mysql:mysql quay.io/debezium/connect:3.0
+sh ./scripts/kafka_ui.sh
 ```
 
+Initialize example MySQL:
+```
+sh ./scripts/mysql.sh
+```
+
+Initialize Kafka Connect:
+```
+sh ./scripts/connect.sh
+```
+
+Kafka Debezium MySQL Connector to be added:
 ```
 {
   "name": "inventory-connector",  
@@ -35,4 +55,20 @@ docker run -it --rm --name connect -p 8083:8083 -e GROUP_ID=1 -e CONFIG_STORAGE_
     "schema.history.internal.kafka.topic": "schema-changes.inventory"  
   }
 }
+```
+
+Add Connector:
+```
+sh ./scripts/create_connection.sh
+```
+
+### Read Streaming
+Install pyspark
+```
+pip install -r requirements.txt
+```
+
+Run script:
+```
+python main.py
 ```
