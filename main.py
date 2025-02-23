@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import explode, split
+from pyspark.sql.functions import explode, split, expr
 
 scala_version = '2.12'
 spark_version = '3.5.4'
@@ -18,7 +18,23 @@ df = spark \
     .readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "localhost:9092") \
+    .option("stratingOffsets", "earliest") \
     .option("subscribe", "dbserver1.inventory.customers") \
     .load()
 
-df.printSchema()
+print(df.select("value")
+  .writeStream
+  .format("console")
+  .foreachBatch(print)
+  .start())
+
+# (df.select("topic", "value")
+#     .writeStream
+#     .format("console")
+#     # .option("checkpointLocation", self.configs['checkpoint_location'])
+#     # .foreachBatch(persist_data)
+#     .outputMode("append")
+#     .option("path", "output")
+#     .start().awaitTermination())
+
+# df.select("value").show()
