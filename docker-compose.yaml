@@ -1,49 +1,82 @@
+version: '3.8'
 services:
-  zookeeper:
-    image: quay.io/debezium/zookeeper:3.0
-    ports:
-     - 2181:2181
-     - 2888:2888
-     - 3888:3888
-  kafka:
-    image: quay.io/debezium/kafka:3.0
-    ports:
-     - 9092:9092
-    links:
-     - zookeeper
-    environment:
-     - ZOOKEEPER_CONNECT=zookeeper:2181
+  # MySQL
   mysql:
-    image: quay.io/debezium/example-mysql:3.0
+    image: mysql:8.0
+    container_name: mysql
     ports:
-     - 3306:3306
+      - "3306:3306" 
     environment:
-     - MYSQL_ROOT_PASSWORD=debezium
-     - MYSQL_USER=mysqluser
-     - MYSQL_PASSWORD=mysqlpw
-  connect:
-    image: quay.io/debezium/connect:3.0
-    ports:
-     - 8083:8083
-    links:
-     - kafka
-     - mysql
-    environment:
-     - BOOTSTRAP_SERVERS=kafka:9092
-     - GROUP_ID=1
-     - CONFIG_STORAGE_TOPIC=my_connect_configs
-     - OFFSET_STORAGE_TOPIC=my_connect_offsets
-     - STATUS_STORAGE_TOPIC=my_connect_statuses
+      MYSQL_ROOT_PASSWORD: debezium
+      MYSQL_USER: mysqluser
+      MYSQL_PASSWORD: mysqlpw
+      MYSQL_DATABASE: customers
 
+  # Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # Debezium Connect
+  connect:
+    image: debezium/connect:2.3
+    container_name: connect
+    depends_on:
+      - kafka
+      - mysql
+    ports:
+      - "8083:8083"
+    environment:
+      GROUP_ID: 1
+      BOOTSTRAP_SERVERS: kafka:29092
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      STATUS_STORAGE_TOPIC: connect_statuses
+
+  # Kafka UI
   kafka-ui:
     container_name: kafka-ui
     image: provectuslabs/kafka-ui:latest
     ports:
       - "8080:8080"
-    links:
+    depends_on:
       - kafka
       - connect
     environment:
-      - KAFKA_CLUSTERS_0_NAME=local
-      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:9092
-      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_NAME: debezium
+      KAFKA_CLUSTERS_0_KAFKACONNECT_0_ADDRESS: http://localhost:8083
+      DYNAMIC_CONFIG_ENABLED: 'true'
+  
+  # Python App
+  generator:
+    build:
+      context: ./generator
+    depends_on:
+      - mysql
+      - kafka
+    volumes:
+      - ./generator:/app

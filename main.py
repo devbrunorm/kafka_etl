@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import explode, split, expr
+from pyspark.sql.functions import explode, split, expr, from_json, col
 
 scala_version = '2.12'
 spark_version = '3.5.4'
@@ -10,31 +10,31 @@ packages = [
 
 spark = SparkSession\
     .builder\
-    .appName("StructuredNetworkWordCount")\
+    .appName("KafkaSparkStreaming")\
+    .master("local[*]") \
     .config('spark.jars.packages', ','.join(packages))\
     .getOrCreate()
 
 df = spark \
-    .readStream \
+    .read \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "localhost:9092") \
     .option("stratingOffsets", "earliest") \
-    .option("subscribe", "dbserver1.inventory.customers") \
+    .option("subscribe", "customers-connector-v1.customers.customers") \
     .load()
 
-print(df.select("value")
-  .writeStream
-  .format("console")
-  .foreachBatch(print)
-  .start())
+df = df.withColumn("value", expr("cast(value as string)"))
+json_schema = spark.read.json(df.select(col("value").alias("j")).rdd.map(lambda x: x.j)).schema
+df = df.withColumn("values_json", from_json(col("value"), json_schema))
+df = df.select("values_json.payload.after.*")
+df.show()
 
-# (df.select("topic", "value")
-#     .writeStream
-#     .format("console")
-#     # .option("checkpointLocation", self.configs['checkpoint_location'])
-#     # .foreachBatch(persist_data)
-#     .outputMode("append")
-#     .option("path", "output")
-#     .start().awaitTermination())
+# streaming = df.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)") \
+#     .writeStream \
+#     .format("console") \
+#     .outputMode("append") \
+#     .start().awaitTermination()
 
-# df.select("value").show()
+    # .trigger(availableNow=True) \
+    # .option("checkpointLocation", "checkpoint") \
+    # .option("path", "output")\

@@ -1,0 +1,4 @@
+Faker==36.1.1
+SQLAlchemy==2.0.38
+PyMySQL==1.1.1
+cryptography
