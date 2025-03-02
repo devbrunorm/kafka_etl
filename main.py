@@ -8,6 +8,15 @@ packages = [
     'org.apache.kafka:kafka-clients:3.2.0'
 ]
 
+def persist_data(batch_df, batch_id):
+    batch_df.persist()
+    json_schema = spark.read.json(batch_df.select(col("value").alias("j")).rdd.map(lambda x: x.j)).schema
+    batch_df = batch_df.withColumn("values_json", from_json(col("value"), json_schema))
+    batch_df.show()
+    # batch_df = batch_df.select("values_json.payload.after.*")
+    # batch_df.printSchema()
+    batch_df.unpersist()
+
 spark = SparkSession\
     .builder\
     .appName("KafkaSparkStreaming")\
@@ -15,19 +24,33 @@ spark = SparkSession\
     .config('spark.jars.packages', ','.join(packages))\
     .getOrCreate()
 
-df = spark \
-    .read \
+# df = spark \
+#     .read \
+#     .format("kafka") \
+#     .option("kafka.bootstrap.servers", "localhost:9092") \
+#     .option("stratingOffsets", "earliest") \
+#     .option("subscribe", "customers-connector-v1.customers.customers") \
+#     .load()
+
+# df = df.withColumn("value", expr("cast(value as string)"))
+# json_schema = spark.read.json(df.select(col("value").alias("j")).rdd.map(lambda x: x.j)).schema
+# df = df.withColumn("values_json", from_json(col("value"), json_schema))
+# df = df.select("values_json.payload.after.*")
+# df.show()
+
+streaming = spark \
+    .readStream \
     .format("kafka") \
     .option("kafka.bootstrap.servers", "localhost:9092") \
     .option("stratingOffsets", "earliest") \
     .option("subscribe", "customers-connector-v1.customers.customers") \
     .load()
 
-df = df.withColumn("value", expr("cast(value as string)"))
-json_schema = spark.read.json(df.select(col("value").alias("j")).rdd.map(lambda x: x.j)).schema
-df = df.withColumn("values_json", from_json(col("value"), json_schema))
-df = df.select("values_json.payload.after.*")
-df.show()
+streaming.selectExpr("cast(value as string) as value")\
+            .writeStream\
+            .foreachBatch(persist_data)\
+            .outputMode("append")\
+            .start().awaitTermination()
 
 # streaming = df.selectExpr("CAST(key AS STRING)", "CAST(value AS STRING)") \
 #     .writeStream \
