@@ -7,6 +7,7 @@ time.sleep(30)  # wait for mysql to start
 with create_engine('mysql+pymysql://mysqluser:mysqlpw@mysql:3306/customers').connect() as cnx:
     cnx.execute(text(f"CREATE TABLE IF NOT EXISTS customers (id INT AUTO_INCREMENT PRIMARY KEY, first_name VARCHAR(255), last_name VARCHAR(255), email VARCHAR(255))"))
     cnx.commit()
+    time.sleep(30)
     fake = Faker()
     while True:
         for _ in range(10):

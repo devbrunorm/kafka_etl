@@ -72,11 +72,11 @@ services:
       DYNAMIC_CONFIG_ENABLED: 'true'
   
   # Python App
-  generator:
-    build:
-      context: ./generator
-    depends_on:
-      - mysql
-      - kafka
-    volumes:
-      - ./generator:/app
+  # generator:
+  #   build:
+  #     context: ./generator
+  #   depends_on:
+  #     - mysql
+  #     - kafka
+  #   volumes:
+  #     - ./generator:/app
